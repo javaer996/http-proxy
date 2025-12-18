@@ -149,6 +149,7 @@ config/
 | DELETE /api/response-groups/:id | 删除响应分组 |
 | GET /api/logs | 获取请求日志 |
 | DELETE /api/logs | 清空日志 |
+| POST /api/shutdown | 关闭服务 |
 
 ## 环境变量
 

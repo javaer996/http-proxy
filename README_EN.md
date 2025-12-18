@@ -149,6 +149,7 @@ config/
 | DELETE /api/response-groups/:id | Delete response group |
 | GET /api/logs | Get request logs |
 | DELETE /api/logs | Clear logs |
+| POST /api/shutdown | Shutdown server |
 
 ## Environment Variables
 
