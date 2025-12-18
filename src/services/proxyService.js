@@ -2,8 +2,8 @@ const http = require('http');
 const https = require('https');
 const zlib = require('zlib');
 const { URL } = require('url');
-const headerGroupService = require('./headerGroupService');
-const bodyGroupService = require('./bodyGroupService');
+const requestGroupService = require('./requestGroupService');
+const responseGroupService = require('./responseGroupService');
 const logService = require('./logService');
 
 class ProxyService {
@@ -12,10 +12,10 @@ class ProxyService {
    * @param {string} targetUrl - 目标URL
    * @param {object} originalReq - 原始请求对象
    * @param {object} originalRes - 原始响应对象
-   * @param {string} headerGroupId - Header分组ID（可选）
-   * @param {string} bodyGroupId - Body分组ID（可选）
+   * @param {string} requestGroupId - 请求分组ID（可选）
+   * @param {string} responseGroupId - 响应分组ID（可选）
    */
-  async proxy(targetUrl, originalReq, originalRes, headerGroupId = null, bodyGroupId = null) {
+  async proxy(targetUrl, originalReq, originalRes, requestGroupId = null, responseGroupId = null) {
     const startTime = Date.now();
     console.log(`[DEBUG proxyService] 开始代理: ${targetUrl}`);
 
@@ -48,37 +48,37 @@ class ProxyService {
     try {
       let requestBody = await collectRequestBody();
 
-      // 检查是否需要直接返回响应（不发起实际请求）
-      const skipResult = bodyGroupService.shouldSkipRequest(bodyGroupId);
-      if (skipResult && skipResult.skip) {
+      // 检查是否需要直接返回响应（Mock模式）
+      const mockResult = responseGroupService.shouldMock(responseGroupId);
+      if (mockResult) {
         const logEntry = {
           method: originalReq.method,
           originalUrl: originalReq.originalUrl,
-          targetUrl: targetUrl,
+          targetUrl: targetUrl + ' [Mock]',
           requestHeaders: { ...originalReq.headers },
           requestBody: this.formatBody(requestBody),
-          responseHeaders: { 'content-type': 'application/json' },
-          responseBody: this.formatBody(skipResult.body),
-          status: skipResult.statusCode,
+          responseHeaders: mockResult.headers,
+          responseBody: this.formatBody(mockResult.body),
+          status: mockResult.statusCode,
           duration: Date.now() - startTime,
           error: null
         };
         logService.add(logEntry);
 
-        originalRes.writeHead(skipResult.statusCode, { 'content-type': 'application/json' });
-        originalRes.end(skipResult.body);
+        originalRes.writeHead(mockResult.statusCode, mockResult.headers);
+        originalRes.end(mockResult.body);
         return;
       }
 
       // 处理请求体
-      requestBody = bodyGroupService.processRequestBody(requestBody, bodyGroupId);
+      requestBody = requestGroupService.processBody(requestBody, requestGroupId);
 
       const parsedUrl = new URL(targetUrl);
       const isHttps = parsedUrl.protocol === 'https:';
       const httpModule = isHttps ? https : http;
 
       // 构建请求头
-      const headers = this.buildHeaders(originalReq.headers, targetUrl, headerGroupId);
+      const headers = this.buildHeaders(originalReq.headers, targetUrl, requestGroupId);
 
       const logEntry = {
         method: originalReq.method,
@@ -133,20 +133,26 @@ class ProxyService {
             console.log(`[DEBUG proxyService] 解压失败: ${e.message}`);
           }
 
-          // 处理响应体（使用脚本修改）
-          let finalBody = bodyGroupService.processResponseBody(decodedBody, bodyGroupId);
+          // 处理响应体
+          let finalBody = responseGroupService.processBody(decodedBody, responseGroupId);
+
+          // 处理响应头
+          let responseHeaders = { ...proxyRes.headers };
+          delete responseHeaders['transfer-encoding'];
+          delete responseHeaders['content-encoding'];
+          responseHeaders = responseGroupService.applyHeaders(responseHeaders, responseGroupId);
+          responseHeaders['content-length'] = finalBody.length;
+
+          // 处理状态码
+          const finalStatus = responseGroupService.getStatusCode(responseGroupId, proxyRes.statusCode);
 
           logEntry.responseBody = this.formatBody(finalBody);
+          logEntry.responseHeaders = responseHeaders;
+          logEntry.status = finalStatus;
           logService.add(logEntry);
           console.log(`[DEBUG proxyService] 日志已添加`);
 
-          // 发送响应
-          const responseHeaders = { ...proxyRes.headers };
-          delete responseHeaders['transfer-encoding'];
-          delete responseHeaders['content-encoding'];
-          responseHeaders['content-length'] = finalBody.length;
-
-          originalRes.writeHead(proxyRes.statusCode, responseHeaders);
+          originalRes.writeHead(finalStatus, responseHeaders);
           originalRes.end(finalBody);
         });
       });
@@ -279,7 +285,7 @@ class ProxyService {
   /**
    * 构建最终请求头
    */
-  buildHeaders(originalHeaders, targetUrl, headerGroupId) {
+  buildHeaders(originalHeaders, targetUrl, requestGroupId) {
     // 复制原始头部
     const headers = {};
     for (const [key, value] of Object.entries(originalHeaders)) {
@@ -298,12 +304,8 @@ class ProxyService {
     const parsedUrl = new URL(targetUrl);
     headers['host'] = parsedUrl.host;
 
-    // 应用Header分组
-    if (headerGroupId) {
-      return headerGroupService.applyGroup(headers, headerGroupId);
-    }
-
-    return headers;
+    // 应用请求分组的Header修改
+    return requestGroupService.applyHeaders(headers, requestGroupId);
   }
 }
 

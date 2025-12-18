@@ -13,55 +13,74 @@
       <p class="subtitle">访问 <code>http://localhost:3030/{key}</code> 转发到映射的目标URL</p>
     </header>
 
-    <!-- 路径映射 -->
-    <section class="section">
-      <div class="section-header">
-        <h2>路径映射</h2>
-        <button id="btn-add-mapping" class="btn btn-primary">+ 添加映射</button>
-      </div>
-      <div id="mappings-list" class="list">
-        <p class="empty">加载中...</p>
-      </div>
-    </section>
+    <div class="main-layout">
+      <!-- 左侧配置区 -->
+      <div class="config-panel">
+        <!-- 路径映射 -->
+        <section class="section collapsible">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-title">
+              <span class="collapse-icon">▼</span>
+              <h2>路径映射</h2>
+            </div>
+            <button id="btn-add-mapping" class="btn btn-primary" onclick="event.stopPropagation()">+ 添加映射</button>
+          </div>
+          <div id="mappings-list" class="list section-content">
+            <p class="empty">加载中...</p>
+          </div>
+        </section>
 
-    <!-- Header分组 -->
-    <section class="section">
-      <div class="section-header">
-        <h2>Header分组</h2>
-        <button id="btn-add-group" class="btn btn-primary">+ 添加分组</button>
-      </div>
-      <div id="groups-list" class="list">
-        <p class="empty">加载中...</p>
-      </div>
-    </section>
+        <!-- 请求分组 -->
+        <section class="section collapsible">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-title">
+              <span class="collapse-icon">▼</span>
+              <h2>请求分组</h2>
+            </div>
+            <button id="btn-add-request-group" class="btn btn-primary" onclick="event.stopPropagation()">+ 添加分组</button>
+          </div>
+          <div id="request-groups-list" class="list section-content">
+            <p class="empty">加载中...</p>
+          </div>
+        </section>
 
-    <!-- Body分组 -->
-    <section class="section">
-      <div class="section-header">
-        <h2>Body分组</h2>
-        <button id="btn-add-body-group" class="btn btn-primary">+ 添加分组</button>
+        <!-- 响应分组 -->
+        <section class="section collapsible">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-title">
+              <span class="collapse-icon">▼</span>
+              <h2>响应分组</h2>
+            </div>
+            <button id="btn-add-response-group" class="btn btn-primary" onclick="event.stopPropagation()">+ 添加分组</button>
+          </div>
+          <div id="response-groups-list" class="list section-content">
+            <p class="empty">加载中...</p>
+          </div>
+        </section>
       </div>
-      <div id="body-groups-list" class="list">
-        <p class="empty">加载中...</p>
-      </div>
-    </section>
 
-    <!-- 请求日志 -->
-    <section class="section">
-      <div class="section-header">
-        <h2>请求日志</h2>
-        <div class="log-controls">
-          <label class="auto-refresh">
-            <input type="checkbox" id="auto-refresh" checked> 自动刷新
-          </label>
-          <button id="btn-refresh-logs" class="btn btn-secondary btn-sm">刷新</button>
-          <button id="btn-clear-logs" class="btn btn-secondary btn-sm">清空日志</button>
-        </div>
+      <!-- 右侧日志区 -->
+      <div class="logs-panel">
+        <section class="section collapsible">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-title">
+              <span class="collapse-icon">▼</span>
+              <h2>请求日志</h2>
+            </div>
+            <div class="log-controls" onclick="event.stopPropagation()">
+              <label class="auto-refresh">
+                <input type="checkbox" id="auto-refresh" checked> 自动刷新
+              </label>
+              <button id="btn-refresh-logs" class="btn btn-secondary btn-sm">刷新</button>
+              <button id="btn-clear-logs" class="btn btn-secondary btn-sm">清空日志</button>
+            </div>
+          </div>
+          <div id="logs-list" class="logs-list section-content">
+            <p class="empty">暂无请求日志</p>
+          </div>
+        </section>
       </div>
-      <div id="logs-list" class="logs-list">
-        <p class="empty">暂无请求日志</p>
-      </div>
-    </section>
+    </div>
 
     <!-- 映射编辑模态框 -->
     <div id="mapping-modal" class="modal hidden">
@@ -88,15 +107,15 @@
           </div>
 
           <div class="form-group">
-            <label for="mapping-group">关联Header分组</label>
-            <select id="mapping-group">
+            <label for="mapping-request-group">关联请求分组</label>
+            <select id="mapping-request-group">
               <option value="">-- 不关联 --</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="mapping-body-group">关联Body分组</label>
-            <select id="mapping-body-group">
+            <label for="mapping-response-group">关联响应分组</label>
+            <select id="mapping-response-group">
               <option value="">-- 不关联 --</option>
             </select>
           </div>
@@ -120,90 +139,103 @@
       </div>
     </div>
 
-    <!-- Header分组编辑模态框 -->
-    <div id="group-modal" class="modal hidden">
-      <div class="modal-content">
+    <!-- 请求分组编辑模态框 -->
+    <div id="request-group-modal" class="modal hidden">
+      <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
-          <h3 id="group-modal-title">添加Header分组</h3>
-          <button class="btn-close" onclick="closeGroupModal()">&times;</button>
+          <h3 id="request-group-modal-title">添加请求分组</h3>
+          <button class="btn-close" onclick="closeRequestGroupModal()">&times;</button>
         </div>
-        <form id="group-form">
-          <input type="hidden" id="group-id">
+        <form id="request-group-form">
+          <input type="hidden" id="request-group-id">
 
           <div class="form-group">
-            <label for="group-name">分组名称</label>
-            <input type="text" id="group-name" required placeholder="如: API认证">
+            <label for="request-group-name">分组名称</label>
+            <input type="text" id="request-group-name" required placeholder="如: API认证">
           </div>
 
           <div class="form-group">
-            <label for="group-desc">描述 (可选)</label>
-            <input type="text" id="group-desc" placeholder="描述这个分组的用途">
+            <label for="request-group-desc">描述 (可选)</label>
+            <input type="text" id="request-group-desc" placeholder="描述这个分组的用途">
           </div>
 
           <div class="form-group">
-            <label>Header操作</label>
-            <div id="actions-list" class="actions-list"></div>
-            <button type="button" id="btn-add-action" class="btn btn-secondary">+ 添加操作</button>
+            <label>请求头操作</label>
+            <div id="request-header-actions" class="actions-list"></div>
+            <button type="button" class="btn btn-secondary" onclick="addRequestHeaderAction()">+ 添加操作</button>
+          </div>
+
+          <div class="form-group">
+            <label>请求体处理</label>
+            <select id="request-body-type" onchange="toggleRequestBodyConfig()">
+              <option value="">不处理</option>
+              <option value="script">脚本修改</option>
+              <option value="replace">直接替换</option>
+            </select>
+            <div id="request-body-config" class="body-config hidden">
+              <textarea id="request-body-content" rows="5" placeholder="脚本示例: return { ...body, newField: 'value' }"></textarea>
+            </div>
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn" onclick="closeGroupModal()">取消</button>
+            <button type="button" class="btn" onclick="closeRequestGroupModal()">取消</button>
             <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- Body分组编辑模态框 -->
-    <div id="body-group-modal" class="modal hidden">
+    <!-- 响应分组编辑模态框 -->
+    <div id="response-group-modal" class="modal hidden">
       <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
-          <h3 id="body-group-modal-title">添加Body分组</h3>
-          <button class="btn-close" onclick="closeBodyGroupModal()">&times;</button>
+          <h3 id="response-group-modal-title">添加响应分组</h3>
+          <button class="btn-close" onclick="closeResponseGroupModal()">&times;</button>
         </div>
-        <form id="body-group-form">
-          <input type="hidden" id="body-group-id">
+        <form id="response-group-form">
+          <input type="hidden" id="response-group-id">
 
           <div class="form-group">
-            <label for="body-group-name">分组名称</label>
-            <input type="text" id="body-group-name" required placeholder="如: Mock响应">
+            <label for="response-group-name">分组名称</label>
+            <input type="text" id="response-group-name" required placeholder="如: Mock响应">
           </div>
 
           <div class="form-group">
-            <label for="body-group-desc">描述 (可选)</label>
-            <input type="text" id="body-group-desc" placeholder="描述这个分组的用途">
+            <label for="response-group-desc">描述 (可选)</label>
+            <input type="text" id="response-group-desc" placeholder="描述这个分组的用途">
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" id="response-mock-mode"> Mock模式 (不发起实际请求)
+            </label>
           </div>
 
           <div class="form-group">
-            <label>请求体处理</label>
-            <select id="req-body-type" onchange="toggleBodyConfig('req')">
-              <option value="">不处理</option>
-              <option value="script">脚本修改</option>
-              <option value="replace">直接替换</option>
-            </select>
-            <div id="req-body-config" class="body-config hidden">
-              <textarea id="req-body-content" rows="5" placeholder="脚本示例: return { ...body, newField: 'value' }"></textarea>
-            </div>
+            <label>状态码</label>
+            <input type="number" id="response-status-code" placeholder="留空则不修改" min="100" max="599">
+          </div>
+
+          <div class="form-group">
+            <label>响应头操作</label>
+            <div id="response-header-actions" class="actions-list"></div>
+            <button type="button" class="btn btn-secondary" onclick="addResponseHeaderAction()">+ 添加操作</button>
           </div>
 
           <div class="form-group">
             <label>响应体处理</label>
-            <select id="res-body-type" onchange="toggleBodyConfig('res')">
+            <select id="response-body-type" onchange="toggleResponseBodyConfig()">
               <option value="">不处理</option>
               <option value="script">脚本修改</option>
-              <option value="replace">直接替换 (不发起请求)</option>
+              <option value="replace">直接替换</option>
             </select>
-            <div id="res-body-config" class="body-config hidden">
-              <div id="res-status-row" class="form-row-inline hidden">
-                <label>状态码</label>
-                <input type="number" id="res-body-status" value="200" min="100" max="599">
-              </div>
-              <textarea id="res-body-content" rows="5" placeholder="脚本示例: return { ...body, modified: true }"></textarea>
+            <div id="response-body-config" class="body-config hidden">
+              <textarea id="response-body-content" rows="5" placeholder="脚本示例: return { ...body, modified: true }"></textarea>
             </div>
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn" onclick="closeBodyGroupModal()">取消</button>
+            <button type="button" class="btn" onclick="closeResponseGroupModal()">取消</button>
             <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>
