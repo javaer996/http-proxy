@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const { exec } = require('child_process');
 const proxyRouter = require('./src/routes/proxy');
 const logsRouter = require('./src/routes/logs');
 const mappingsRouter = require('./src/routes/mappings');
@@ -70,4 +71,8 @@ app.listen(PORT, () => {
   console.log(`  代理示例: http://localhost:${PORT}/{key}`);
   console.log(`           配置 key -> 目标URL 的映射`);
   console.log(`========================================\n`);
+
+  // 自动打开浏览器
+  const url = `http://localhost:${PORT}/admin`;
+  exec(`open "${url}"`);
 });
