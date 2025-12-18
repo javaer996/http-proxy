@@ -902,3 +902,16 @@ window.closeHelpModal = function() {
   document.getElementById('help-modal').classList.add('hidden');
   document.body.style.overflow = '';
 };
+
+// Shutdown Server
+window.shutdownServer = async function() {
+  if (!confirm('确定要退出服务吗？')) return;
+
+  try {
+    await fetch('/api/shutdown', { method: 'POST' });
+    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-size:24px;color:#666;">服务已关闭，可以关闭此页面</div>';
+  } catch (err) {
+    // 服务已关闭，请求会失败
+    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-size:24px;color:#666;">服务已关闭，可以关闭此页面</div>';
+  }
+};

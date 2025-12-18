@@ -993,11 +993,17 @@ header h1 {
   background: white;
 }
 
-/* Help Button */
-.btn-help {
+/* Header Buttons */
+.header-buttons {
   position: absolute;
   top: 20px;
   right: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.btn-help,
+.btn-shutdown {
   padding: 8px 16px;
   background: rgba(255,255,255,0.2);
   color: white;
@@ -1010,6 +1016,15 @@ header h1 {
 
 .btn-help:hover {
   background: rgba(255,255,255,0.3);
+}
+
+.btn-shutdown {
+  background: rgba(255,71,87,0.8);
+  border-color: rgba(255,71,87,0.9);
+}
+
+.btn-shutdown:hover {
+  background: rgba(255,71,87,1);
 }
 
 header {

@@ -11,7 +11,10 @@
     <header>
       <h1>HTTP代理 管理控制台</h1>
       <p class="subtitle">访问 <code>http://localhost:3030/{key}</code> 转发到映射的目标URL</p>
-      <button class="btn-help" onclick="openHelpModal()">使用说明</button>
+      <div class="header-buttons">
+        <button class="btn-help" onclick="openHelpModal()">使用说明</button>
+        <button class="btn-shutdown" onclick="shutdownServer()">退出服务</button>
+      </div>
     </header>
 
     <div class="main-layout">

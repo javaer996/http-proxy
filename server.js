@@ -51,6 +51,15 @@ app.get('/', (req, res) => {
   res.redirect('/admin');
 });
 
+// 退出服务 API
+app.post('/api/shutdown', (req, res) => {
+  res.json({ message: '服务正在关闭...' });
+  console.log('\n服务正在关闭...');
+  setTimeout(() => {
+    process.exit(0);
+  }, 500);
+});
+
 // 代理路由 - 放在最后，处理映射请求
 app.use(proxyRouter);
 
