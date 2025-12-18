@@ -1,13 +1,15 @@
 # HTTP 代理服务
 
-一个本地 HTTP 代理服务，支持请求转发、Header 修改、Body 修改和请求日志记录。
+[English](./README_EN.md) | 中文
+
+一个本地 HTTP 代理服务，支持请求转发、请求/响应修改、Mock 响应和请求日志记录。
 
 ## 功能特性
 
-- **路径映射**: 配置 `/{key}` 到目标 URL 的映射，支持随机生成 key
-- **Header 分组**: 对请求头进行添加、覆盖、删除操作
-- **Body 分组**: 对请求体/响应体进行脚本修改或直接替换
-- **请求日志**: 记录所有代理请求，支持查看请求头、请求体、响应头、响应体
+- **路径映射**: 配置 `/{key}` 到目标 URL 的映射
+- **请求分组**: 修改请求头和请求体
+- **响应分组**: 修改响应头、响应体和状态码，支持 Mock 模式
+- **请求日志**: 记录所有代理请求，支持查看完整请求/响应详情
 - **Web 管理界面**: 可视化管理所有配置
 
 ## 快速开始
@@ -29,44 +31,55 @@ node server.js
 在管理界面点击"添加映射"，配置：
 - **映射 Key**: 访问路径，如 `api`
 - **目标 URL**: 转发目标，如 `https://api.example.com/v1`
-- **Header 分组**: 可选，关联 Header 修改规则
-- **Body 分组**: 可选，关联 Body 修改规则
 
-配置后，访问 `http://localhost:3030/api` 会转发到 `https://api.example.com/v1`。
+**示例：** 配置 Key 为 `openai`，目标为 `https://api.openai.com/v1/chat/completions`
 
-### 2. Header 分组
+- `http://localhost:3030/openai` → `https://api.openai.com/v1/chat/completions`
+- `http://localhost:3030/openai/xxx` → `https://api.openai.com/v1/chat/completions`
 
-创建 Header 分组来修改请求头：
+**注意：** Key 后面的路径会被忽略，始终转发到配置的目标 URL。
 
-| 操作类型 | 说明 |
-|---------|------|
-| 添加 | 如果 Header 不存在则添加 |
-| 覆盖 | 强制设置 Header 值 |
-| 删除 | 删除指定 Header |
+### 2. 请求分组
 
-### 3. Body 分组
+用于修改发出的请求，在映射中关联后生效：
 
-创建 Body 分组来修改请求体或响应体：
+| 功能 | 说明 |
+|-----|------|
+| 请求头操作 | 添加/覆盖/删除请求头 |
+| 请求体处理 | 脚本修改或直接替换 |
 
-| 处理类型 | 说明 |
-|---------|------|
-| 脚本修改 | 通过 JavaScript 脚本修改 JSON |
-| 直接替换 | 完全替换为指定内容 |
+### 3. 响应分组
 
-**注意**: 响应体配置为"直接替换"时，不会发起实际请求，直接返回配置的内容（Mock 功能）。
+用于修改收到的响应，在映射中关联后生效：
 
-## 脚本修改说明
+| 功能 | 说明 |
+|-----|------|
+| Mock 模式 | 不发起实际请求，直接返回配置的响应 |
+| 状态码 | 修改响应状态码 |
+| 响应头操作 | 添加/覆盖/删除响应头 |
+| 响应体处理 | 脚本修改或直接替换 |
 
-脚本接收 `body` 参数（已解析的 JSON 对象），必须 `return` 处理后的结果。
+## Body 处理方式
+
+### 直接替换
+完全替换为你输入的内容，原内容被丢弃。
+
+### 脚本修改
+通过 JavaScript 脚本处理，脚本接收 `body` 参数，必须 `return` 结果。
+
+**body 参数说明：**
+- 如果原始内容是**有效 JSON**，`body` 是解析后的 JavaScript 对象
+- 如果原始内容**不是 JSON**（如纯文本、HTML），`body` 是原始字符串
+- 脚本执行出错时，保留原始内容不做修改
+
+## 脚本示例
 
 ### 添加字段
-
 ```javascript
-return { ...body, newField: 'value', timestamp: Date.now() }
+return { ...body, timestamp: Date.now() };
 ```
 
 ### 删除字段
-
 ```javascript
 delete body.password;
 delete body.token;
@@ -74,71 +87,37 @@ return body;
 ```
 
 ### 修改字段
-
 ```javascript
-body.name = body.name.toUpperCase();
-body.count = body.count + 1;
+body.username = body.username.toUpperCase();
 return body;
 ```
 
 ### 解构删除多个字段
-
 ```javascript
-const { password, token, secret, ...rest } = body;
+const { password, secret, ...rest } = body;
 return rest;
 ```
 
 ### 修改嵌套结构
-
 ```javascript
 body.data.items = body.data.items.filter(item => item.active);
 body.data.count = body.data.items.length;
 return body;
 ```
 
-### 条件修改
-
+### 处理非 JSON 内容
 ```javascript
-if (body.type === 'user') {
-  body.role = 'admin';
+if (typeof body === 'string') {
+  return body.replace('old', 'new');
 }
 return body;
 ```
 
-### 复杂示例
-
-```javascript
-// 删除敏感字段
-const { password, token, ...rest } = body;
-
-// 添加处理信息
-return {
-  ...rest,
-  processed: true,
-  processedAt: new Date().toISOString(),
-  data: {
-    ...rest.data,
-    items: rest.data.items.map(item => ({
-      ...item,
-      id: item.id.toString()
-    }))
-  }
-};
+### Mock 响应
+在响应分组中开启 Mock 模式，Body 选择"直接替换"，输入：
+```json
+{"code": 0, "message": "success", "data": {"id": 123}}
 ```
-
-### 注意事项
-
-- 脚本必须有 `return` 语句
-- `body` 是已解析的 JSON 对象，可直接操作
-- 如果原始内容不是有效 JSON，`body` 会是原始字符串
-- 脚本执行出错时保留原始内容
-
-## 请求日志
-
-- 自动记录所有代理请求
-- 点击日志条目展开查看详情
-- 展开详情时自动暂停自动刷新
-- 支持全屏查看和复制请求体/响应体
 
 ## 配置文件
 
@@ -146,10 +125,10 @@ return {
 
 ```
 config/
-├── mappings.json      # 路径映射
-├── header-groups.json # Header 分组
-├── body-groups.json   # Body 分组
-└── logs.json          # 请求日志
+├── mappings.json        # 路径映射
+├── request-groups.json  # 请求分组
+├── response-groups.json # 响应分组
+└── logs.json           # 请求日志
 ```
 
 ## API 接口
@@ -160,14 +139,14 @@ config/
 | POST /api/mappings | 创建映射 |
 | PUT /api/mappings/:id | 更新映射 |
 | DELETE /api/mappings/:id | 删除映射 |
-| GET /api/header-groups | 获取所有 Header 分组 |
-| POST /api/header-groups | 创建 Header 分组 |
-| PUT /api/header-groups/:id | 更新 Header 分组 |
-| DELETE /api/header-groups/:id | 删除 Header 分组 |
-| GET /api/body-groups | 获取所有 Body 分组 |
-| POST /api/body-groups | 创建 Body 分组 |
-| PUT /api/body-groups/:id | 更新 Body 分组 |
-| DELETE /api/body-groups/:id | 删除 Body 分组 |
+| GET /api/request-groups | 获取所有请求分组 |
+| POST /api/request-groups | 创建请求分组 |
+| PUT /api/request-groups/:id | 更新请求分组 |
+| DELETE /api/request-groups/:id | 删除请求分组 |
+| GET /api/response-groups | 获取所有响应分组 |
+| POST /api/response-groups | 创建响应分组 |
+| PUT /api/response-groups/:id | 更新响应分组 |
+| DELETE /api/response-groups/:id | 删除响应分组 |
 | GET /api/logs | 获取请求日志 |
 | DELETE /api/logs | 清空日志 |
 

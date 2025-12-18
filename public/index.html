@@ -11,6 +11,7 @@
     <header>
       <h1>HTTP代理 管理控制台</h1>
       <p class="subtitle">访问 <code>http://localhost:3030/{key}</code> 转发到映射的目标URL</p>
+      <button class="btn-help" onclick="openHelpModal()">使用说明</button>
     </header>
 
     <div class="main-layout">
@@ -71,6 +72,11 @@
               <label class="auto-refresh">
                 <input type="checkbox" id="auto-refresh" checked> 自动刷新
               </label>
+              <select id="log-limit" class="log-limit" onchange="loadLogs()">
+                <option value="20">20条</option>
+                <option value="50" selected>50条</option>
+                <option value="100">100条</option>
+              </select>
               <button id="btn-refresh-logs" class="btn btn-secondary btn-sm">刷新</button>
               <button id="btn-clear-logs" class="btn btn-secondary btn-sm">清空日志</button>
             </div>
@@ -250,6 +256,93 @@
           <button class="btn-close" onclick="closeFullscreenModal()">&times;</button>
         </div>
         <div id="fullscreen-modal-body" class="fullscreen-modal-body">
+        </div>
+      </div>
+    </div>
+
+    <!-- 使用说明模态框 -->
+    <div id="help-modal" class="modal hidden">
+      <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+          <h3>使用说明</h3>
+          <button class="btn-close" onclick="closeHelpModal()">&times;</button>
+        </div>
+        <div class="help-content">
+          <h4>1. 基本使用</h4>
+          <p><strong>步骤一：</strong>创建路径映射，配置 Key（如 <code>api</code>）和目标 URL（如 <code>https://api.example.com/v1</code>）</p>
+          <p><strong>步骤二：</strong>访问 <code>http://localhost:3030/api</code> 即可转发到 <code>https://api.example.com/v1</code></p>
+          <p><strong>示例：</strong>配置 Key 为 <code>openai</code>，目标为 <code>https://api.openai.com/v1/chat/completions</code>，则：</p>
+          <ul>
+            <li><code>http://localhost:3030/openai</code> → <code>https://api.openai.com/v1/chat/completions</code></li>
+            <li><code>http://localhost:3030/openai/xxx</code> → <code>https://api.openai.com/v1/chat/completions</code></li>
+          </ul>
+          <p><strong>注意：</strong>Key 后面的路径会被忽略，始终转发到配置的目标 URL</p>
+
+          <h4>2. 请求分组</h4>
+          <p>用于修改<strong>发出的请求</strong>，在映射中关联后生效：</p>
+          <table class="help-table">
+            <tr><td><strong>请求头操作</strong></td><td>添加/覆盖/删除请求头。如：添加 <code>Authorization: Bearer xxx</code></td></tr>
+            <tr><td><strong>请求体处理</strong></td><td>脚本修改或直接替换请求体内容</td></tr>
+          </table>
+
+          <h4>3. 响应分组</h4>
+          <p>用于修改<strong>收到的响应</strong>，在映射中关联后生效：</p>
+          <table class="help-table">
+            <tr><td><strong>Mock模式</strong></td><td>勾选后<strong>不发起实际请求</strong>，直接返回配置的响应内容，用于接口模拟</td></tr>
+            <tr><td><strong>状态码</strong></td><td>修改响应状态码，如将 500 改为 200</td></tr>
+            <tr><td><strong>响应头操作</strong></td><td>添加/覆盖/删除响应头</td></tr>
+            <tr><td><strong>响应体处理</strong></td><td>脚本修改或直接替换响应体内容</td></tr>
+          </table>
+
+          <h4>4. Body 处理方式</h4>
+          <p><strong>直接替换：</strong>完全替换为你输入的内容，原内容被丢弃</p>
+          <p><strong>脚本修改：</strong>通过 JavaScript 脚本处理，脚本接收 <code>body</code> 参数，必须 <code>return</code> 结果</p>
+
+          <h4>5. 脚本修改详解</h4>
+          <p><strong>body 参数说明：</strong></p>
+          <ul>
+            <li>如果原始内容是<strong>有效 JSON</strong>，<code>body</code> 是解析后的 JavaScript 对象</li>
+            <li>如果原始内容<strong>不是 JSON</strong>（如纯文本、HTML），<code>body</code> 是原始字符串</li>
+            <li>脚本执行出错时，保留原始内容不做修改</li>
+          </ul>
+
+          <p><strong>示例 1：添加字段</strong></p>
+          <pre class="help-code">// 给请求添加时间戳
+return { ...body, timestamp: Date.now() };</pre>
+
+          <p><strong>示例 2：删除敏感字段</strong></p>
+          <pre class="help-code">// 删除密码字段
+delete body.password;
+delete body.token;
+return body;</pre>
+
+          <p><strong>示例 3：修改字段值</strong></p>
+          <pre class="help-code">// 修改用户名为大写
+body.username = body.username.toUpperCase();
+return body;</pre>
+
+          <p><strong>示例 4：解构删除多个字段</strong></p>
+          <pre class="help-code">// 删除 password 和 secret，保留其他字段
+const { password, secret, ...rest } = body;
+return rest;</pre>
+
+          <p><strong>示例 5：修改嵌套结构</strong></p>
+          <pre class="help-code">// 过滤数组中的数据
+body.data.items = body.data.items.filter(item => item.active);
+body.data.count = body.data.items.length;
+return body;</pre>
+
+          <p><strong>示例 6：处理非 JSON 内容</strong></p>
+          <pre class="help-code">// body 是字符串时的处理
+if (typeof body === 'string') {
+  return body.replace('old', 'new');
+}
+return body;</pre>
+
+          <p><strong>示例 7：Mock 响应</strong></p>
+          <pre class="help-code">// 在响应分组中开启 Mock 模式，Body 选择"直接替换"
+// 输入以下内容作为模拟响应：
+{"code": 0, "message": "success", "data": {"id": 123}}</pre>
         </div>
       </div>
     </div>

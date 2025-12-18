@@ -544,7 +544,8 @@ let activeTabMap = new Map(); // 记录每个日志的活跃tab
 
 async function loadLogs() {
   try {
-    const res = await fetch(API.logs);
+    const limit = document.getElementById('log-limit').value || 50;
+    const res = await fetch(`${API.logs}?limit=${limit}`);
     const { data } = await res.json();
     renderLogs(data);
   } catch (err) {
@@ -892,3 +893,12 @@ window.addResponseHeaderAction = addResponseHeaderAction;
 window.updateResponseHeaderAction = updateResponseHeaderAction;
 window.removeResponseHeaderAction = removeResponseHeaderAction;
 window.toggleResponseBodyConfig = toggleResponseBodyConfig;
+// Help Modal
+window.openHelpModal = function() {
+  document.getElementById('help-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+};
+window.closeHelpModal = function() {
+  document.getElementById('help-modal').classList.add('hidden');
+  document.body.style.overflow = '';
+};
