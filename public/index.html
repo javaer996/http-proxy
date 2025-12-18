@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTTP代理 - 管理控制台</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>HTTP代理 管理控制台</h1>
+      <p class="subtitle">访问 <code>http://localhost:3030/{key}</code> 转发到映射的目标URL</p>
+    </header>
+
+    <!-- 路径映射 -->
+    <section class="section">
+      <div class="section-header">
+        <h2>路径映射</h2>
+        <button id="btn-add-mapping" class="btn btn-primary">+ 添加映射</button>
+      </div>
+      <div id="mappings-list" class="list">
+        <p class="empty">加载中...</p>
+      </div>
+    </section>
+
+    <!-- Header分组 -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Header分组</h2>
+        <button id="btn-add-group" class="btn btn-primary">+ 添加分组</button>
+      </div>
+      <div id="groups-list" class="list">
+        <p class="empty">加载中...</p>
+      </div>
+    </section>
+
+    <!-- 请求日志 -->
+    <section class="section">
+      <div class="section-header">
+        <h2>请求日志</h2>
+        <div class="log-controls">
+          <label class="auto-refresh">
+            <input type="checkbox" id="auto-refresh" checked> 自动刷新
+          </label>
+          <button id="btn-clear-logs" class="btn btn-secondary btn-sm">清空日志</button>
+        </div>
+      </div>
+      <div id="logs-list" class="logs-list">
+        <p class="empty">暂无请求日志</p>
+      </div>
+    </section>
+
+    <!-- 映射编辑模态框 -->
+    <div id="mapping-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="mapping-modal-title">添加映射</h3>
+          <button class="btn-close" onclick="closeMappingModal()">&times;</button>
+        </div>
+        <form id="mapping-form">
+          <input type="hidden" id="mapping-id">
+
+          <div class="form-group">
+            <label for="mapping-key">映射Key</label>
+            <div class="input-with-button">
+              <input type="text" id="mapping-key" required placeholder="如: iflow">
+              <button type="button" id="btn-generate-key" class="btn btn-secondary btn-sm">随机生成</button>
+            </div>
+            <small class="hint">访问 /{key} 将转发到目标URL</small>
+          </div>
+
+          <div class="form-group">
+            <label for="mapping-target">目标URL</label>
+            <input type="text" id="mapping-target" required placeholder="如: https://api.example.com/v1/chat">
+          </div>
+
+          <div class="form-group">
+            <label for="mapping-group">关联Header分组</label>
+            <select id="mapping-group">
+              <option value="">-- 不关联 --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="mapping-desc">描述 (可选)</label>
+            <input type="text" id="mapping-desc" placeholder="描述这个映射的用途">
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" id="mapping-enabled" checked> 启用此映射
+            </label>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeMappingModal()">取消</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Header分组编辑模态框 -->
+    <div id="group-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="group-modal-title">添加Header分组</h3>
+          <button class="btn-close" onclick="closeGroupModal()">&times;</button>
+        </div>
+        <form id="group-form">
+          <input type="hidden" id="group-id">
+
+          <div class="form-group">
+            <label for="group-name">分组名称</label>
+            <input type="text" id="group-name" required placeholder="如: API认证">
+          </div>
+
+          <div class="form-group">
+            <label for="group-desc">描述 (可选)</label>
+            <input type="text" id="group-desc" placeholder="描述这个分组的用途">
+          </div>
+
+          <div class="form-group">
+            <label>Header操作</label>
+            <div id="actions-list" class="actions-list"></div>
+            <button type="button" id="btn-add-action" class="btn btn-secondary">+ 添加操作</button>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeGroupModal()">取消</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
