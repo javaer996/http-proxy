@@ -38,8 +38,8 @@ router.all('*', (req, res, next) => {
 
   console.log(`[PROXY] ${req.method} ${req.path} -> ${fullTargetUrl}`);
 
-  // 代理请求，传递headerGroupId
-  proxyService.proxy(fullTargetUrl, req, res, mapping.headerGroupId);
+  // 代理请求，传递headerGroupId和bodyGroupId
+  proxyService.proxy(fullTargetUrl, req, res, mapping.headerGroupId, mapping.bodyGroupId);
 });
 
 module.exports = router;

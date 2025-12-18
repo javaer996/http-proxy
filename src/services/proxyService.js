@@ -3,6 +3,7 @@ const https = require('https');
 const zlib = require('zlib');
 const { URL } = require('url');
 const headerGroupService = require('./headerGroupService');
+const bodyGroupService = require('./bodyGroupService');
 const logService = require('./logService');
 
 class ProxyService {
@@ -12,8 +13,9 @@ class ProxyService {
    * @param {object} originalReq - 原始请求对象
    * @param {object} originalRes - 原始响应对象
    * @param {string} headerGroupId - Header分组ID（可选）
+   * @param {string} bodyGroupId - Body分组ID（可选）
    */
-  async proxy(targetUrl, originalReq, originalRes, headerGroupId = null) {
+  async proxy(targetUrl, originalReq, originalRes, headerGroupId = null, bodyGroupId = null) {
     const startTime = Date.now();
     console.log(`[DEBUG proxyService] 开始代理: ${targetUrl}`);
 
@@ -44,7 +46,33 @@ class ProxyService {
     };
 
     try {
-      const requestBody = await collectRequestBody();
+      let requestBody = await collectRequestBody();
+
+      // 检查是否需要直接返回响应（不发起实际请求）
+      const skipResult = bodyGroupService.shouldSkipRequest(bodyGroupId);
+      if (skipResult && skipResult.skip) {
+        const logEntry = {
+          method: originalReq.method,
+          originalUrl: originalReq.originalUrl,
+          targetUrl: targetUrl,
+          requestHeaders: { ...originalReq.headers },
+          requestBody: this.formatBody(requestBody),
+          responseHeaders: { 'content-type': 'application/json' },
+          responseBody: this.formatBody(skipResult.body),
+          status: skipResult.statusCode,
+          duration: Date.now() - startTime,
+          error: null
+        };
+        logService.add(logEntry);
+
+        originalRes.writeHead(skipResult.statusCode, { 'content-type': 'application/json' });
+        originalRes.end(skipResult.body);
+        return;
+      }
+
+      // 处理请求体
+      requestBody = bodyGroupService.processRequestBody(requestBody, bodyGroupId);
+
       const parsedUrl = new URL(targetUrl);
       const isHttps = parsedUrl.protocol === 'https:';
       const httpModule = isHttps ? https : http;
@@ -105,16 +133,21 @@ class ProxyService {
             console.log(`[DEBUG proxyService] 解压失败: ${e.message}`);
           }
 
-          logEntry.responseBody = this.formatBody(decodedBody);
+          // 处理响应体（使用脚本修改）
+          let finalBody = bodyGroupService.processResponseBody(decodedBody, bodyGroupId);
+
+          logEntry.responseBody = this.formatBody(finalBody);
           logService.add(logEntry);
           console.log(`[DEBUG proxyService] 日志已添加`);
 
-          // 发送响应（保持原始压缩格式）
+          // 发送响应
           const responseHeaders = { ...proxyRes.headers };
           delete responseHeaders['transfer-encoding'];
+          delete responseHeaders['content-encoding'];
+          responseHeaders['content-length'] = finalBody.length;
 
           originalRes.writeHead(proxyRes.statusCode, responseHeaders);
-          originalRes.end(responseBody);
+          originalRes.end(finalBody);
         });
       });
 

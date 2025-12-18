@@ -4,6 +4,7 @@ const proxyRouter = require('./src/routes/proxy');
 const logsRouter = require('./src/routes/logs');
 const mappingsRouter = require('./src/routes/mappings');
 const headerGroupsRouter = require('./src/routes/headerGroups');
+const bodyGroupsRouter = require('./src/routes/bodyGroups');
 const mappingService = require('./src/services/mappingService');
 
 const app = express();
@@ -37,6 +38,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/logs', logsRouter);
 app.use('/api/mappings', mappingsRouter);
 app.use('/api/header-groups', headerGroupsRouter);
+app.use('/api/body-groups', bodyGroupsRouter);
 
 // 管理页面入口
 app.get('/admin', (req, res) => {

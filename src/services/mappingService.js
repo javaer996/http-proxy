@@ -69,6 +69,7 @@ class MappingService {
       key: key,
       targetUrl: data.targetUrl,
       headerGroupId: data.headerGroupId || null,
+      bodyGroupId: data.bodyGroupId || null,
       description: data.description || '',
       enabled: data.enabled !== false,
       createdAt: new Date().toISOString(),

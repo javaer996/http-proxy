@@ -2,21 +2,26 @@
 const API = {
   mappings: '/api/mappings',
   groups: '/api/header-groups',
+  bodyGroups: '/api/body-groups',
   logs: '/api/logs'
 };
 
 // DOM elements
 const mappingsList = document.getElementById('mappings-list');
 const groupsList = document.getElementById('groups-list');
+const bodyGroupsList = document.getElementById('body-groups-list');
 const logsList = document.getElementById('logs-list');
 const mappingModal = document.getElementById('mapping-modal');
 const groupModal = document.getElementById('group-modal');
+const bodyGroupModal = document.getElementById('body-group-modal');
 
 // State
 let currentMappingId = null;
 let currentGroupId = null;
+let currentBodyGroupId = null;
 let actions = [];
 let headerGroups = [];
+let bodyGroups = [];
 let logsRefreshInterval = null;
 let autoRefreshEnabled = true;
 
@@ -38,6 +43,10 @@ function bindEvents() {
   document.getElementById('btn-add-action').addEventListener('click', addAction);
   document.getElementById('group-form').addEventListener('submit', saveGroupHandler);
 
+  // Body Group events
+  document.getElementById('btn-add-body-group').addEventListener('click', () => openBodyGroupModal());
+  document.getElementById('body-group-form').addEventListener('submit', saveBodyGroupHandler);
+
   // Log events
   document.getElementById('auto-refresh').addEventListener('change', (e) => {
     autoRefreshEnabled = e.target.checked;
@@ -47,7 +56,7 @@ function bindEvents() {
   document.getElementById('btn-clear-logs').addEventListener('click', clearLogs);
 
   // Modal close on background click
-  [mappingModal, groupModal].forEach(modal => {
+  [mappingModal, groupModal, bodyGroupModal].forEach(modal => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
         modal.classList.add('hidden');
@@ -61,6 +70,7 @@ function bindEvents() {
     if (e.key === 'Escape') {
       closeMappingModal();
       closeGroupModal();
+      closeBodyGroupModal();
       closeFullscreenModal();
     }
   });
@@ -68,6 +78,7 @@ function bindEvents() {
 
 async function loadAll() {
   await loadGroups();
+  await loadBodyGroups();
   await loadMappings();
   await loadLogs();
 }
@@ -92,6 +103,7 @@ function renderMappings(mappings) {
 
   mappingsList.innerHTML = mappings.map(m => {
     const group = headerGroups.find(g => g.id === m.headerGroupId);
+    const bodyGroup = bodyGroups.find(g => g.id === m.bodyGroupId);
     return `
       <div class="card ${m.enabled ? '' : 'disabled'}">
         <div class="card-info">
@@ -101,7 +113,8 @@ function renderMappings(mappings) {
           </h4>
           <p class="meta">
             <span>目标: ${escapeHtml(m.targetUrl)}</span>
-            ${group ? `<span>Header分组: ${escapeHtml(group.name)}</span>` : ''}
+            ${group ? `<span>Header: ${escapeHtml(group.name)}</span>` : ''}
+            ${bodyGroup ? `<span>Body: ${escapeHtml(bodyGroup.name)}</span>` : ''}
             ${m.description ? `<span>${escapeHtml(m.description)}</span>` : ''}
           </p>
         </div>
@@ -132,6 +145,11 @@ function openMappingModal(mapping = null) {
   select.innerHTML = '<option value="">-- 不关联 --</option>' +
     headerGroups.map(g => `<option value="${g.id}" ${mapping?.headerGroupId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('');
 
+  // Populate body groups dropdown
+  const bodySelect = document.getElementById('mapping-body-group');
+  bodySelect.innerHTML = '<option value="">-- 不关联 --</option>' +
+    bodyGroups.map(g => `<option value="${g.id}" ${mapping?.bodyGroupId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('');
+
   mappingModal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
@@ -159,6 +177,7 @@ async function saveMappingHandler(e) {
     key: document.getElementById('mapping-key').value.trim(),
     targetUrl: document.getElementById('mapping-target').value.trim(),
     headerGroupId: document.getElementById('mapping-group').value || null,
+    bodyGroupId: document.getElementById('mapping-body-group').value || null,
     description: document.getElementById('mapping-desc').value.trim(),
     enabled: document.getElementById('mapping-enabled').checked
   };
@@ -376,6 +395,165 @@ async function deleteGroup(id) {
 
   try {
     await fetch(`${API.groups}/${id}`, { method: 'DELETE' });
+    loadAll();
+  } catch (err) {
+    alert('删除失败: ' + err.message);
+  }
+}
+
+// ===== Body Groups =====
+async function loadBodyGroups() {
+  try {
+    const res = await fetch(API.bodyGroups);
+    const { data } = await res.json();
+    bodyGroups = data || [];
+    renderBodyGroups(bodyGroups);
+  } catch (err) {
+    console.error('加载Body分组失败:', err);
+    bodyGroupsList.innerHTML = '<p class="empty">加载失败</p>';
+  }
+}
+
+function renderBodyGroups(groups) {
+  if (!groups || groups.length === 0) {
+    bodyGroupsList.innerHTML = '<p class="empty">暂无Body分组，点击"添加分组"创建</p>';
+    return;
+  }
+
+  bodyGroupsList.innerHTML = groups.map(g => {
+    const reqType = g.requestBody?.type ? (g.requestBody.type === 'script' ? '脚本' : '替换') : '无';
+    const resType = g.responseBody?.type ? (g.responseBody.type === 'script' ? '脚本' : '替换') : '无';
+    return `
+      <div class="card">
+        <div class="card-info">
+          <h4>${escapeHtml(g.name)}</h4>
+          <p class="meta">
+            <span>请求体: ${reqType}</span>
+            <span>响应体: ${resType}</span>
+            ${g.description ? `<span>${escapeHtml(g.description)}</span>` : ''}
+          </p>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-sm" onclick="editBodyGroup('${g.id}')">编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteBodyGroup('${g.id}')">删除</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openBodyGroupModal(group = null) {
+  currentBodyGroupId = group?.id || null;
+  document.getElementById('body-group-modal-title').textContent = group ? '编辑Body分组' : '添加Body分组';
+
+  document.getElementById('body-group-id').value = group?.id || '';
+  document.getElementById('body-group-name').value = group?.name || '';
+  document.getElementById('body-group-desc').value = group?.description || '';
+
+  // 请求体配置
+  document.getElementById('req-body-type').value = group?.requestBody?.type || '';
+  document.getElementById('req-body-content').value = group?.requestBody?.content || '';
+  toggleBodyConfig('req');
+
+  // 响应体配置
+  document.getElementById('res-body-type').value = group?.responseBody?.type || '';
+  document.getElementById('res-body-content').value = group?.responseBody?.content || '';
+  document.getElementById('res-body-status').value = group?.responseBody?.statusCode || 200;
+  toggleBodyConfig('res');
+
+  bodyGroupModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeBodyGroupModal() {
+  bodyGroupModal.classList.add('hidden');
+  document.body.style.overflow = '';
+  currentBodyGroupId = null;
+}
+
+function toggleBodyConfig(prefix) {
+  const type = document.getElementById(`${prefix}-body-type`).value;
+  const config = document.getElementById(`${prefix}-body-config`);
+
+  if (type) {
+    config.classList.remove('hidden');
+  } else {
+    config.classList.add('hidden');
+  }
+
+  // 响应体替换时显示状态码
+  if (prefix === 'res') {
+    const statusRow = document.getElementById('res-status-row');
+    if (type === 'replace') {
+      statusRow.classList.remove('hidden');
+    } else {
+      statusRow.classList.add('hidden');
+    }
+  }
+}
+
+async function saveBodyGroupHandler(e) {
+  e.preventDefault();
+
+  const reqType = document.getElementById('req-body-type').value;
+  const resType = document.getElementById('res-body-type').value;
+
+  const data = {
+    name: document.getElementById('body-group-name').value.trim(),
+    description: document.getElementById('body-group-desc').value.trim(),
+    requestBody: reqType ? {
+      type: reqType,
+      content: document.getElementById('req-body-content').value
+    } : null,
+    responseBody: resType ? {
+      type: resType,
+      content: document.getElementById('res-body-content').value,
+      statusCode: parseInt(document.getElementById('res-body-status').value) || 200
+    } : null
+  };
+
+  if (!data.name) {
+    alert('请输入分组名称');
+    return;
+  }
+
+  try {
+    const url = currentBodyGroupId ? `${API.bodyGroups}/${currentBodyGroupId}` : API.bodyGroups;
+    const method = currentBodyGroupId ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      closeBodyGroupModal();
+      loadAll();
+    } else {
+      alert('保存失败: ' + result.message);
+    }
+  } catch (err) {
+    alert('保存失败: ' + err.message);
+  }
+}
+
+async function editBodyGroup(id) {
+  try {
+    const res = await fetch(`${API.bodyGroups}/${id}`);
+    const { data } = await res.json();
+    openBodyGroupModal(data);
+  } catch (err) {
+    alert('获取分组失败: ' + err.message);
+  }
+}
+
+async function deleteBodyGroup(id) {
+  if (!confirm('确定要删除这个分组吗？')) return;
+
+  try {
+    await fetch(`${API.bodyGroups}/${id}`, { method: 'DELETE' });
     loadAll();
   } catch (err) {
     alert('删除失败: ' + err.message);
@@ -718,3 +896,7 @@ window.switchLogTab = switchLogTab;
 window.copyBodyContent = copyBodyContent;
 window.openFullscreenModal = openFullscreenModal;
 window.closeFullscreenModal = closeFullscreenModal;
+window.editBodyGroup = editBodyGroup;
+window.deleteBodyGroup = deleteBodyGroup;
+window.closeBodyGroupModal = closeBodyGroupModal;
+window.toggleBodyConfig = toggleBodyConfig;

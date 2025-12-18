@@ -899,6 +899,45 @@ header h1 {
   to { transform: rotate(360deg); }
 }
 
+/* Body Config */
+.body-config {
+  margin-top: 10px;
+}
+
+.body-config textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.body-config textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-row-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.form-row-inline label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.form-row-inline input {
+  width: 100px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
 /* Scrollbar for detail content */
 .log-detail-content::-webkit-scrollbar {
   width: 6px;

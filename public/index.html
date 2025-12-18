@@ -35,6 +35,17 @@
       </div>
     </section>
 
+    <!-- Body分组 -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Body分组</h2>
+        <button id="btn-add-body-group" class="btn btn-primary">+ 添加分组</button>
+      </div>
+      <div id="body-groups-list" class="list">
+        <p class="empty">加载中...</p>
+      </div>
+    </section>
+
     <!-- 请求日志 -->
     <section class="section">
       <div class="section-header">
@@ -79,6 +90,13 @@
           <div class="form-group">
             <label for="mapping-group">关联Header分组</label>
             <select id="mapping-group">
+              <option value="">-- 不关联 --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="mapping-body-group">关联Body分组</label>
+            <select id="mapping-body-group">
               <option value="">-- 不关联 --</option>
             </select>
           </div>
@@ -130,6 +148,62 @@
 
           <div class="modal-footer">
             <button type="button" class="btn" onclick="closeGroupModal()">取消</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Body分组编辑模态框 -->
+    <div id="body-group-modal" class="modal hidden">
+      <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+          <h3 id="body-group-modal-title">添加Body分组</h3>
+          <button class="btn-close" onclick="closeBodyGroupModal()">&times;</button>
+        </div>
+        <form id="body-group-form">
+          <input type="hidden" id="body-group-id">
+
+          <div class="form-group">
+            <label for="body-group-name">分组名称</label>
+            <input type="text" id="body-group-name" required placeholder="如: Mock响应">
+          </div>
+
+          <div class="form-group">
+            <label for="body-group-desc">描述 (可选)</label>
+            <input type="text" id="body-group-desc" placeholder="描述这个分组的用途">
+          </div>
+
+          <div class="form-group">
+            <label>请求体处理</label>
+            <select id="req-body-type" onchange="toggleBodyConfig('req')">
+              <option value="">不处理</option>
+              <option value="script">脚本修改</option>
+              <option value="replace">直接替换</option>
+            </select>
+            <div id="req-body-config" class="body-config hidden">
+              <textarea id="req-body-content" rows="5" placeholder="脚本示例: return { ...body, newField: 'value' }"></textarea>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>响应体处理</label>
+            <select id="res-body-type" onchange="toggleBodyConfig('res')">
+              <option value="">不处理</option>
+              <option value="script">脚本修改</option>
+              <option value="replace">直接替换 (不发起请求)</option>
+            </select>
+            <div id="res-body-config" class="body-config hidden">
+              <div id="res-status-row" class="form-row-inline hidden">
+                <label>状态码</label>
+                <input type="number" id="res-body-status" value="200" min="100" max="599">
+              </div>
+              <textarea id="res-body-content" rows="5" placeholder="脚本示例: return { ...body, modified: true }"></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn" onclick="closeBodyGroupModal()">取消</button>
             <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>
