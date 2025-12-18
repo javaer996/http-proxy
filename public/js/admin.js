@@ -43,6 +43,7 @@ function bindEvents() {
     autoRefreshEnabled = e.target.checked;
     autoRefreshEnabled ? startAutoRefresh() : stopAutoRefresh();
   });
+  document.getElementById('btn-refresh-logs').addEventListener('click', manualRefreshLogs);
   document.getElementById('btn-clear-logs').addEventListener('click', clearLogs);
 
   // Modal close on background click
@@ -60,6 +61,7 @@ function bindEvents() {
     if (e.key === 'Escape') {
       closeMappingModal();
       closeGroupModal();
+      closeFullscreenModal();
     }
   });
 }
@@ -397,8 +399,12 @@ async function loadLogs() {
 function renderLogs(logs) {
   if (!logs || logs.length === 0) {
     logsList.innerHTML = '<p class="empty">暂无请求日志</p>';
+    logsData = [];
     return;
   }
+
+  // 保存日志数据用于全屏显示
+  logsData = logs;
 
   logsList.innerHTML = logs.map(log => {
     const time = new Date(log.timestamp).toLocaleTimeString('zh-CN');
@@ -432,11 +438,21 @@ function toggleLogDetail(logId) {
   } else {
     expandedLogIds.add(logId);
     activeTabMap.set(logId, 'req-headers');
+    // 展开详情时自动关闭自动刷新
+    if (autoRefreshEnabled) {
+      autoRefreshEnabled = false;
+      document.getElementById('auto-refresh').checked = false;
+      stopAutoRefresh();
+      showToast('自动刷新已取消');
+    }
   }
   loadLogs();
 }
 
-function renderLogDetail(log, activeTab) {
+// 存储日志数据用于全屏显示
+let logsData = [];
+
+function renderLogDetail(log, activeTab, isFullscreen = false) {
   const tabs = [
     { id: 'req-headers', label: '请求头' },
     { id: 'req-body', label: '请求体' },
@@ -447,6 +463,8 @@ function renderLogDetail(log, activeTab) {
     tabs.push({ id: 'error', label: '错误' });
   }
 
+  const fullscreenBtn = isFullscreen ? '' : `<button class="btn-fullscreen" onclick="openFullscreenModal(event, '${log.id}')">全屏</button>`;
+
   return `
     <div class="log-detail" onclick="event.stopPropagation()">
       <div class="log-detail-tabs">
@@ -454,19 +472,20 @@ function renderLogDetail(log, activeTab) {
           <button class="tab-btn ${tab.id === activeTab ? 'active' : ''} ${tab.id === 'error' ? 'tab-error' : ''}"
                   onclick="switchLogTab(event, '${log.id}', '${tab.id}')">${tab.label}</button>
         `).join('')}
+        ${fullscreenBtn}
       </div>
       <div class="log-detail-content">
         <div class="tab-panel ${activeTab === 'req-headers' ? 'active' : ''}" data-tab="${log.id}-req-headers">
           ${renderHeaders(log.requestHeaders, '请求头')}
         </div>
         <div class="tab-panel ${activeTab === 'req-body' ? 'active' : ''}" data-tab="${log.id}-req-body">
-          ${renderBody(log.requestBody, '请求体')}
+          ${renderBody(log.requestBody, '请求体', log.id + '-req')}
         </div>
         <div class="tab-panel ${activeTab === 'res-headers' ? 'active' : ''}" data-tab="${log.id}-res-headers">
           ${renderHeaders(log.responseHeaders, '响应头')}
         </div>
         <div class="tab-panel ${activeTab === 'res-body' ? 'active' : ''}" data-tab="${log.id}-res-body">
-          ${renderBody(log.responseBody, '响应体')}
+          ${renderBody(log.responseBody, '响应体', log.id + '-res')}
         </div>
         ${log.error ? `<div class="tab-panel ${activeTab === 'error' ? 'active' : ''}" data-tab="${log.id}-error"><pre class="error-text">${escapeHtml(log.error)}</pre></div>` : ''}
       </div>
@@ -508,7 +527,7 @@ function renderHeaders(headers, title) {
   return `<table class="headers-table"><tbody>${rows}</tbody></table>`;
 }
 
-function renderBody(body, title) {
+function renderBody(body, title, copyId) {
   if (!body) {
     return `<p class="empty-detail">无${title}数据</p>`;
   }
@@ -517,8 +536,7 @@ function renderBody(body, title) {
     return `
       <p class="empty-detail">
         <strong>[二进制数据]</strong><br>
-        大小: ${formatBytes(body.size)}<br>
-        ${body.truncated ? `显示大小: ${formatBytes(Math.min(body.size, 50 * 1024))}` : ''}
+        大小: ${formatBytes(body.size)}
       </p>
     `;
   }
@@ -530,11 +548,12 @@ function renderBody(body, title) {
     content = body.data;
   }
 
-  const truncatedInfo = body.truncated ? `<p class="truncated-info">内容已截断，原始大小: ${formatBytes(body.size)}</p>` : '';
-
   return `
-    ${truncatedInfo}
-    <pre class="body-content ${body.type === 'json' ? 'json' : ''}">${escapeHtml(content)}</pre>
+    <div class="body-header">
+      <span class="body-header-title">大小: ${formatBytes(body.size)}</span>
+      <button class="btn-copy" onclick="copyBodyContent(event, '${copyId}')">复制</button>
+    </div>
+    <pre class="body-content ${body.type === 'json' ? 'json' : ''}" data-copy-id="${copyId}">${escapeHtml(content)}</pre>
   `;
 }
 
@@ -574,6 +593,15 @@ function getStatusClass(status) {
   return '';
 }
 
+async function manualRefreshLogs() {
+  const btn = document.getElementById('btn-refresh-logs');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  await loadLogs();
+  btn.classList.remove('loading');
+  btn.disabled = false;
+}
+
 async function clearLogs() {
   if (!confirm('确定要清空所有日志吗？')) return;
 
@@ -607,6 +635,74 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 2000);
+}
+
+// ===== Copy Body Content =====
+function copyBodyContent(event, copyId) {
+  event.stopPropagation();
+  event.preventDefault();
+
+  const preElement = document.querySelector(`[data-copy-id="${copyId}"]`);
+  if (!preElement) return;
+
+  const text = preElement.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '已复制';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.classList.remove('copied');
+    }, 1500);
+  }).catch(err => {
+    console.error('复制失败:', err);
+    alert('复制失败');
+  });
+}
+
+// ===== Fullscreen Modal =====
+const fullscreenModal = document.getElementById('fullscreen-modal');
+
+function openFullscreenModal(event, logId) {
+  event.stopPropagation();
+  event.preventDefault();
+
+  const log = logsData.find(l => l.id === logId);
+  if (!log) return;
+
+  const activeTab = activeTabMap.get(logId) || 'req-headers';
+  const time = new Date(log.timestamp).toLocaleTimeString('zh-CN');
+
+  document.getElementById('fullscreen-modal-title').textContent = `请求详情 - ${log.method} ${log.originalUrl} (${time})`;
+  document.getElementById('fullscreen-modal-body').innerHTML = renderLogDetail(log, activeTab, true);
+
+  fullscreenModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFullscreenModal() {
+  fullscreenModal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+// Add fullscreen modal to close handlers
+fullscreenModal.addEventListener('click', (e) => {
+  if (e.target === fullscreenModal) {
+    closeFullscreenModal();
+  }
+});
+
 // Global functions for onclick
 window.editMapping = editMapping;
 window.toggleMapping = toggleMapping;
@@ -619,3 +715,6 @@ window.updateAction = updateAction;
 window.removeAction = removeAction;
 window.toggleLogDetail = toggleLogDetail;
 window.switchLogTab = switchLogTab;
+window.copyBodyContent = copyBodyContent;
+window.openFullscreenModal = openFullscreenModal;
+window.closeFullscreenModal = closeFullscreenModal;

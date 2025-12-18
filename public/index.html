@@ -43,6 +43,7 @@
           <label class="auto-refresh">
             <input type="checkbox" id="auto-refresh" checked> 自动刷新
           </label>
+          <button id="btn-refresh-logs" class="btn btn-secondary btn-sm">刷新</button>
           <button id="btn-clear-logs" class="btn btn-secondary btn-sm">清空日志</button>
         </div>
       </div>
@@ -132,6 +133,18 @@
             <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- 全屏查看请求详情模态框 -->
+    <div id="fullscreen-modal" class="modal hidden">
+      <div class="modal-content fullscreen-modal-content">
+        <div class="modal-header">
+          <h3 id="fullscreen-modal-title">请求详情</h3>
+          <button class="btn-close" onclick="closeFullscreenModal()">&times;</button>
+        </div>
+        <div id="fullscreen-modal-body" class="fullscreen-modal-body">
+        </div>
       </div>
     </div>
   </div>

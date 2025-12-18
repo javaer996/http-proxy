@@ -182,45 +182,41 @@ class ProxyService {
   }
 
   /**
-   * 格式化body为可读字符串（限制大小）
+   * 格式化body为可读字符串（不截断）
    */
   formatBody(buffer) {
     if (!buffer || buffer.length === 0) {
       return null;
     }
 
-    const maxSize = 50 * 1024; // 最大50KB
-    const truncated = buffer.length > maxSize;
-    const content = buffer.slice(0, maxSize);
-
     // 检查是否是二进制数据
-    const isBinary = this.isBinaryData(content);
+    const isBinary = this.isBinaryData(buffer);
 
     if (isBinary) {
       return {
         type: 'binary',
         data: '[二进制数据]',
-        truncated,
+        truncated: false,
         size: buffer.length
       };
     }
 
     // 尝试解析为JSON
     try {
-      const text = content.toString('utf8');
+      const text = buffer.toString('utf8');
       const parsed = JSON.parse(text);
       return {
         type: 'json',
         data: parsed,
-        truncated,
+        truncated: false,
         size: buffer.length
       };
     } catch {
-      const text = content.toString('utf8');
+      const text = buffer.toString('utf8');
       return {
         type: 'text',
         data: text,
-        truncated,
+        truncated: false,
         size: buffer.length
       };
     }
